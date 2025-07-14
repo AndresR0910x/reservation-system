@@ -1,5 +1,5 @@
 Documentación de los Microservicios de Reserva de Viajes
-A continuación se presenta la documentación completa y formateada de los microservicios que componen el sistema de reservas de viajes. Esta documentación incluye la descripción de los servicios, sus endpoints, modelos de datos, configuración del API Gateway, un diagrama de secuencia y un ejemplo de flujo completo con ejecución de rutas.
+A continuación se presenta la documentación actualizada y formateada de los microservicios que componen el sistema de reservas de viajes. Esta documentación incluye la descripción de los servicios, sus endpoints, modelos de datos, configuración del API Gateway, un diagrama de secuencia, un ejemplo de flujo completo con ejecución de rutas, y las instrucciones para levantar los servicios y probar las APIs.
 Tabla de Contenidos
 
 Configuración del API Gateway
@@ -8,6 +8,8 @@ Servicio de Aerolíneas y Vuelos
 Servicio de Hoteles
 Servicio de Reservas
 Servicio de Pagos
+Levantamiento de los Servicios
+Pruebas de las APIs
 Diagrama de Secuencia
 Ejemplo de Flujo Completo
 
@@ -385,7 +387,336 @@ PaymentResponseDTO
 }
 
 
-7. Diagrama de Secuencia
+7. Levantamiento de los Servicios
+Para levantar los microservicios, se requiere configurar el entorno, incluyendo las bases de datos y el servidor Eureka para el descubrimiento de servicios. A continuación, se detallan los pasos:
+Prerrequisitos
+
+Java 17 o superior.
+Maven para la gestión de dependencias.
+PostgreSQL con las bases de datos creadas: travel_client_db, travel_flight_db, travel_hotel_db, travel_reservation_db, travel_payment_db.
+Docker (opcional, para contenedores).
+Herramientas de prueba: Postman, cURL o cualquier cliente HTTP.
+
+Pasos para Levantar los Servicios
+
+Configurar el Servidor Eureka:
+
+Clona el repositorio del servidor Eureka (o crea uno si no existe).
+Configura el archivo application.yml:server:
+  port: 8761
+eureka:
+  client:
+    register-with-eureka: false
+    fetch-registry: false
+
+
+Ejecuta el servidor:mvn spring-boot:run
+
+
+Verifica que el servidor esté activo en http://localhost:8761.
+
+
+Configurar las Bases de Datos:
+
+Crea las bases de datos en PostgreSQL:CREATE DATABASE travel_client_db;
+CREATE DATABASE travel_flight_db;
+CREATE DATABASE travel_hotel_db;
+CREATE DATABASE travel_reservation_db;
+CREATE DATABASE travel_payment_db;
+
+
+Configura las conexiones en los archivos application.yml de cada microservicio. Ejemplo para el servicio de clientes:spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/travel_client_db
+    username: postgres
+
+
+
+
+
+ bup: 5432         password: your_password       jpa:         hibernate:           ddl-auto: update     ```
+
+Levantar los Microservicios:
+
+Clona los repositorios de los microservicios (CLIENTE-SERVICE, AEROLINE-SERVICE, HOTEL-SERVICE, BOOKING-SERVICE, PAGO-SERVICE).
+Para cada microservicio, ejecuta:mvn spring-boot:run
+
+
+Alternativamente, usa Docker si los servicios están contenedorizados:docker-compose up
+
+
+Verifica que cada servicio se registre en Eureka (http://localhost:8761).
+
+
+Levantar el API Gateway:
+
+Clona el repositorio del API Gateway.
+Configura el archivo application.yml como se mostró en la sección 1.
+Ejecuta:mvn spring-boot:run
+
+
+Verifica que el API Gateway esté activo en http://localhost:9090.
+
+
+
+Notas
+
+Asegúrate de que las bases de datos estén inicializadas con los esquemas correspondientes antes de levantar los servicios.
+Si usas Docker, crea un archivo docker-compose.yml que incluya los servicios, PostgreSQL y Eureka.
+
+
+8. Pruebas de las APIs
+Para probar las APIs, puedes usar herramientas como Postman, cURL, o cualquier cliente HTTP. A continuación, se detalla cómo probar los endpoints principales de cada microservicio utilizando cURL. Todas las solicitudes se realizan a través del API Gateway en http://localhost:9090.
+Pruebas del Servicio de Clientes
+
+Crear un cliente:
+curl -X POST http://localhost:9090/api/clients \
+-H "Content-Type: application/json" \
+-d '{
+  "firstName": "María",
+  "lastName": "González",
+  "email": "maria.gonzalez@example.com",
+  "phoneNumber": "+593987654322",
+  "address": "Av. Shyris N45-67, Quito",
+  "initialBalance": 1500.00
+}'
+
+Respuesta esperada:
+{
+  "id": 1,
+  "firstName": "María",
+  "lastName": "González",
+  "email": "maria.gonzalez@example.com",
+  "phoneNumber": "+593987654322",
+  "address": "Av. Shyris N45-67, Quito",
+  "balance": 1500.00,
+  "active": true
+}
+
+
+Obtener un cliente por ID:
+curl -X GET http://localhost:9090/api/clients/1
+
+Respuesta esperada:
+{
+  "id": 1,
+  "firstName": "María",
+  "lastName": "González",
+  "email": "maria.gonzalez@example.com",
+  "phoneNumber": "+593987654322",
+  "address": "Av. Shyris N45-67, Quito",
+  "balance": 1500.00,
+  "active": true
+}
+
+
+
+Pruebas del Servicio de Aerolíneas y Vuelos
+
+Crear una aerolínea:
+curl -X POST http://localhost:9090/api/airlines \
+-H "Content-Type: application/json" \
+-d '{
+  "nombre": "Aerolíneas Ejemplo",
+  "codigo": "AE"
+}'
+
+Respuesta esperada:
+{
+  "id": 1,
+  "nombre": "Aerolíneas Ejemplo",
+  "codigo": "AE"
+}
+
+
+Crear un vuelo:
+curl -X POST http://localhost:9090/api/flights \
+-H "Content-Type: application/json" \
+-d '{
+  "aerolineaId": 1,
+  "origen": "Quito",
+  "destino": "Guayaquil",
+  "fechaSalida": "2025-08-01T08:00:00",
+  "fechaLlegada": "2025-08-01T10:00:00",
+  "precio": 180.00,
+  "disponibilidad": true,
+  "asientosDisponibles": 150
+}'
+
+Respuesta esperada:
+{
+  "id": 1,
+  "aerolineaId": 1,
+  "origen": "Quito",
+  "destino": "Guayaquil",
+  "fechaSalida": "2025-08-01T08:00:00",
+  "fechaLlegada": "2025-08-01T10:00:00",
+  "precio": 180.00,
+  "disponibilidad": true,
+  "asientosDisponibles": 150
+}
+
+
+Buscar vuelos disponibles:
+curl -X GET "http://localhost:9090/api/flights/available?origin=Quito&destination=Guayaquil"
+
+Respuesta esperada:
+[
+  {
+    "id": 1,
+    "aerolineaId": 1,
+    "origen": "Quito",
+    "destino": "Guayaquil",
+    "fechaSalida": "2025-08-01T08:00:00",
+    "fechaLlegada": "2025-08-01T10:00:00",
+    "precio": 180.00,
+    "disponibilidad": true,
+    "asientosDisponibles": 150
+  }
+]
+
+
+
+Pruebas del Servicio de Hoteles
+
+Crear un hotel:
+curl -X POST http://localhost:9090/api/hotels \
+-H "Content-Type: application/json" \
+-d '{
+  "nombre": "Hotel Plaza Grande",
+  "ubicacion": "Quito",
+  "cuartosDisponibles": 50,
+  "precioPorNoche": 120.00,
+  "disponibilidad": true
+}'
+
+Respuesta esperada:
+{
+  "id": 1,
+  "nombre": "Hotel Plaza Grande",
+  "ubicacion": "Quito",
+  "cuartosDisponibles": 50,
+  "precioPorNoche": 120.00,
+  "disponibilidad": true
+}
+
+
+Buscar hoteles disponibles:
+curl -X GET "http://localhost:9090/api/hotels/available?destination=Guayaquil"
+
+Respuesta esperada:
+[
+  {
+    "id": 1,
+    "nombre": "Hotel Plaza Grande",
+    "ubicacion": "Quito",
+    "cuartosDisponibles": 50,
+    "precioPorNoche": 120.00,
+    "disponibilidad": true
+  }
+]
+
+
+
+Pruebas del Servicio de Reservas
+
+Crear una reserva:
+curl -X POST http://localhost:9090/api/reservations \
+-H "Content-Type: application/json" \
+-d '{
+  "clientId": 1,
+  "origin": "Quito",
+  "destination": "Guayaquil",
+  "flightId": 1,
+  "hotelId": 1,
+  "seatsNumber": 2
+}'
+
+Respuesta esperada:
+{
+  "id": 1,
+  "clientId": 1,
+  "origin": "Quito",
+  "destination": "Guayaquil",
+  "flightId": 1,
+  "hotelId": 1,
+  "seatsNumber": 2,
+  "totalPrice": 420.00,
+  "reservationDate": "2025-07-15T14:30:00",
+  "status": "CONFIRMED"
+}
+
+
+Obtener una reserva:
+curl -X GET http://localhost:9090/api/reservations/1
+
+Respuesta esperada:
+{
+  "id": 1,
+  "clientId": 1,
+  "origin": "Quito",
+  "destination": "Guayaquil",
+  "flightId": 1,
+  "hotelId": 1,
+  "seatsNumber": 2,
+  "totalPrice": 420.00,
+  "reservationDate": "2025-07-15T14:30:00",
+  "status": "CONFIRMED"
+}
+
+
+
+Pruebas del Servicio de Pagos
+
+Procesar un pago:
+curl -X POST http://localhost:9090/api/payments \
+-H "Content-Type: application/json" \
+-d '{
+  "reservationId": 1,
+  "clientId": 1,
+  "amount": 420.00,
+  "paymentMethod": "WALLET"
+}'
+
+Respuesta esperada:
+{
+  "id": 1,
+  "reservationId": 1,
+  "clientId": 1,
+  "amount": 420.00,
+  "status": "COMPLETED",
+  "paymentDate": "2025-07-15T14:35:00",
+  "paymentMethod": "WALLET",
+  "transactionId": "TXN-ABC123"
+}
+
+
+Obtener un pago por ID:
+curl -X GET http://localhost:9090/api/payments/1
+
+Respuesta esperada:
+{
+  "id": 1,
+  "reservationId": 1,
+  "clientId": 1,
+  "amount": 420.00,
+  "status": "COMPLETED",
+  "paymentDate": "2025-07-15T14:35:00",
+  "paymentMethod": "WALLET",
+  "transactionId": "TXN-ABC123"
+}
+
+
+
+Notas para las Pruebas
+
+Asegúrate de que los servicios estén levantados y registrados en Eureka antes de realizar las pruebas.
+Los IDs (clientId, flightId, hotelId, etc.) deben corresponder a registros existentes en las bases de datos.
+Si usas Postman, importa las solicitudes cURL directamente o crea una colección para organizarlas.
+Verifica las respuestas HTTP (200 OK, 400 Bad Request, etc.) para diagnosticar errores.
+
+
+9. Diagrama de Secuencia
 El siguiente diagrama de secuencia ilustra el flujo de interacción entre los microservicios para procesar una reserva completa:
 sequenceDiagram
     participant Cliente
@@ -431,7 +762,7 @@ sequenceDiagram
     API_Gateway-->>Cliente: Respuesta (ReservationResponseDTO)
 
 
-8. Ejemplo de Flujo Completo
+10. Ejemplo de Flujo Completo
 A continuación, se describe un flujo completo de una reserva de viaje utilizando las rutas del sistema. Cada solicitud incluye un ejemplo de cuerpo (si aplica) y una breve descripción del propósito.
 1. Registro de Cliente
 Solicitud:
@@ -489,4 +820,4 @@ curl -X GET http://localhost:9090/api/reservations/1
 
 Descripción: Obtiene los detalles de la reserva con ID 1. El servicio de reservas responde con un ReservationResponseDTO.
 
-Este documento proporciona una visión integral de los microservicios de reservas de viajes, sus interacciones y un ejemplo práctico de uso. Para más detalles sobre la implementación, consulta los repositorios de cada microservicio.
+Este documento proporciona una visión integral de los microservicios de reservas de viajes, sus interacciones, instrucciones para levantarlos y probarlos, y un ejemplo práctico de uso. Para más detalles sobre la implementación, consulta los repositorios de cada microservicio.

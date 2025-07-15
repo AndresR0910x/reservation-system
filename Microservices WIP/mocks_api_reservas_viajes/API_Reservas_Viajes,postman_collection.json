@@ -1,0 +1,160 @@
+{
+  "info": {
+    "name": "API de Reservas de Viajes",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Crear Reserva",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"client_id\": \"CLI123\", \"destination\": \"París\", \"hotel_name\": \"Hotel Eiffel\"}"
+        },
+        "url": {
+          "raw": "{{mock_server_url}}/reservations",
+          "host": ["{{mock_server_url}}"],
+          "path": ["reservations"]
+        }
+      },
+      "response": [
+        {
+          "name": "Éxito",
+          "status": "Created",
+          "code": 201,
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\"reservation_id\": \"{{$guid}}\", \"client_id\": \"{{request.body.client_id}}\", \"destination\": \"{{request.body.destination}}\", \"hotel_name\": \"{{request.body.hotel_name}}\", \"total_amount\": 800, \"status\": \"pending\"}"
+        }
+      ]
+    },
+    {
+      "name": "Reservar Hotel",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"reservation_id\": \"RES123\", \"hotel_name\": \"Hotel Eiffel\", \"client_id\": \"CLI123\", \"status\": \"pending\"}"
+        },
+        "url": {
+          "raw": "{{mock_server_url}}/hotels/reserve",
+          "host": ["{{mock_server_url}}"],
+          "path": ["hotels", "reserve"]
+        }
+      },
+      "response": [
+        {
+          "name": "Éxito",
+          "status": "Created",
+          "code": 201,
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\"hotel_reservation_id\": \"{{$guid}}\", \"reservation_id\": \"{{request.body.reservation_id}}\", \"hotel_name\": \"{{request.body.hotel_name}}\", \"client_id\": \"{{request.body.client_id}}\", \"status\": \"{{request.body.status}}\", \"hotel_cost\": 500}"
+        }
+      ]
+    },
+    {
+      "name": "Reservar Vuelo",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"reservation_id\": \"RES123\", \"destination\": \"París\", \"client_id\": \"CLI123\", \"status\": \"pending\"}"
+        },
+        "url": {
+          "raw": "{{mock_server_url}}/flights/reserve",
+          "host": ["{{mock_server_url}}"],
+          "path": ["flights", "reserve"]
+        }
+      },
+      "response": [
+        {
+          "name": "Éxito",
+          "status": "Created",
+          "code": 201,
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\"flight_reservation_id\": \"{{$guid}}\", \"reservation_id\": \"{{request.body.reservation_id}}\", \"destination\": \"{{request.body.destination}}\", \"client_id\": \"{{request.body.client_id}}\", \"status\": \"{{request.body.status}}\", \"flight_cost\": 300}"
+        }
+      ]
+    },
+    {
+      "name": "Procesar Pago",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"reservation_id\": \"RES123\", \"client_id\": \"CLI123\", \"total_amount\": 800}"
+        },
+        "url": {
+          "raw": "{{mock_server_url}}/payments",
+          "host": ["{{mock_server_url}}"],
+          "path": ["payments"]
+        }
+      },
+      "response": [
+        {
+          "name": "Éxito",
+          "status": "OK",
+          "code": 200,
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\"reservation_id\": \"{{request.body.reservation_id}}\", \"client_id\": \"{{request.body.client_id}}\", \"payment_status\": \"success\", \"reservation_status\": \"paid\", \"hotel_status\": \"paid\", \"flight_status\": \"paid\"}"
+        },
+        {
+          "name": "Fallo",
+          "status": "Bad Request",
+          "code": 400,
+          "header": [
+            {
+              "key": "Content-Type",
+              "value": "application/json"
+            }
+          ],
+          "body": "{\"reservation_id\": \"{{request.body.reservation_id}}\", \"client_id\": \"{{request.body.client_id}}\", \"payment_status\": \"failed\", \"reservation_status\": \"canceled\", \"hotel_status\": \"canceled\", \"flight_status\": \"canceled\", \"error\": \"Saldo insuficiente o monto total excede $1000\"}"
+        }
+      ]
+    }
+  ]
+}

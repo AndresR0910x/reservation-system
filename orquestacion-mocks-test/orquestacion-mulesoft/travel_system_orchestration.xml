@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:http="http://www.mulesoft.org/schema/mule/http"
+      xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+      xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="
+        http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+        http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+        http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd">
+
+    <http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config">
+        <http:listener-connection host="0.0.0.0" port="8081"/>
+    </http:listener-config>
+
+    <error-handler name="globalErrorHandler">
+        <on-error-propagate type="ANY" doc:name="Global Error Handler">
+            <ee:transform doc:name="Global Error Response">
+                <ee:message>
+                    <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    "status": "error",
+    "message": "Unexpected error occurred: " ++ (error.description default "Unknown error")
+}
+]]></ee:set-payload>
+                </ee:message>
+            </ee:transform>
+            <logger level="ERROR" doc:name="Log Global Error" message="Global error response: #[payload]"/>
+        </on-error-propagate>
+    </error-handler>
+
+    <flow name="orchestratorFlow" doc:name="Orchestrator Flow">
+        <http:listener path="/booking" doc:name="HTTP Listener" allowedMethods="POST,OPTIONS" config-ref="HTTP_Listener_config">
+            <http:response statusCode="200">
+                <http:headers><![CDATA[#[{
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "http://localhost:5173",
+                    "Access-Control-Allow-Methods": "POST, OPTIONS",
+                    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+                    "Access-Control-Max-Age": "86400"
+                }]]]></http:headers>
+            </http:response>
+            <http:error-response statusCode="400">
+                <http:headers><![CDATA[#[{
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "http://localhost:5173",
+                    "Access-Control-Allow-Methods": "POST, OPTIONS",
+                    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+                    "Access-Control-Max-Age": "86400"
+                }]]]></http:headers>
+            </http:error-response>
+        </http:listener>
+
+        <set-variable variableName="originalPayload" value="#[payload]" doc:name="Store Original Payload"/>
+        
+        <ee:transform doc:name="Validate and Store Input">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+
+        <logger level="INFO" doc:name="Log Request" message="Received booking request: #[payload]"/>
+
+        <try doc:name="Try Booking Process">
+            <flow-ref name="reserveFlightFlow" doc:name="Reserve Flight"/>
+            <logger level="INFO" doc:name="Log Flight Reservation" message="Flight reserved successfully"/>
+
+            <flow-ref name="reserveHotelFlow" doc:name="Reserve Hotel"/>
+            <logger level="INFO" doc:name="Log Hotel Reservation" message="Hotel reserved successfully"/>
+
+            <flow-ref name="processPaymentFlow" doc:name="Process Payment"/>
+            <logger level="INFO" doc:name="Log Payment" message="Payment processed successfully"/>
+
+            <ee:transform doc:name="Success Response">
+                <ee:message>
+                    <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    "status": "success",
+    "message": "Booking completed successfully",
+    "cliente": vars.originalPayload.cliente,
+    "vuelo_destino": vars.originalPayload.vuelo_destino,
+    "hotel_nombre": vars.originalPayload.hotel_nombre,
+    "monto_total": vars.originalPayload.monto_total
+}]]></ee:set-payload>
+                </ee:message>
+            </ee:transform>
+
+            <error-handler>
+                <on-error-propagate type="ANY" doc:name="Handle Payment Failure">
+                    <flow-ref name="cancelFlightFlow" doc:name="Cancel Flight"/>
+                    <logger level="ERROR" doc:name="Log Flight Cancellation" message="Flight reservation cancelled due to error"/>
+                    <flow-ref name="cancelHotelFlow" doc:name="Cancel Hotel"/>
+                    <logger level="ERROR" doc:name="Log Hotel Cancellation" message="Hotel reservation cancelled due to error"/>
+                    <ee:transform doc:name="Error Response">
+                        <ee:message>
+                            <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    "status": "error",
+    "message": "Payment failed: Amount exceeds 1000"
+}
+]]></ee:set-payload>
+                        </ee:message>
+                    </ee:transform>
+                    <logger level="INFO" doc:name="Log Error Response" message="Sending error response: #[payload]"/>
+                </on-error-propagate>
+            </error-handler>
+        </try>
+    </flow>
+
+    <flow name="reserveFlightFlow" doc:name="Reserve Flight Flow">
+        <ee:transform doc:name="Mock Flight Reservation">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    "status": "success",
+    "message": "Flight to " ++ vars.originalPayload.vuelo_destino ++ " reserved for " ++ vars.originalPayload.cliente
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+        <logger level="INFO" doc:name="Log Mock Flight" message="Mock Flight API: #[payload]"/>
+    </flow>
+
+    <flow name="reserveHotelFlow" doc:name="Reserve Hotel Flow">
+        <ee:transform doc:name="Mock Hotel Reservation">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    "status": "success",
+    "message": "Hotel " ++ vars.originalPayload.hotel_nombre ++ " reserved for " ++ vars.originalPayload.cliente
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+        <logger level="INFO" doc:name="Log Mock Hotel" message="Mock Hotel API: #[payload]"/>
+    </flow>
+
+    <flow name="processPaymentFlow" doc:name="Process Payment Flow">
+        <ee:transform doc:name="Check Payment Amount">
+            <ee:variables>
+                <ee:set-variable variableName="paymentValid"><![CDATA[%dw 2.0
+output application/java
+---
+vars.originalPayload.monto_total <= 1000
+]]></ee:set-variable>
+            </ee:variables>
+        </ee:transform>
+
+        <choice doc:name="Payment Validation Choice">
+            <when expression="vars.paymentValid">
+                <ee:transform doc:name="Mock Payment Success">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    "status": "success",
+    "message": "Payment of " ++ (vars.originalPayload.monto_total as String) ++ " processed for " ++ vars.originalPayload.cliente
+}]]></ee:set-payload>
+                    </ee:message>
+                </ee:transform>
+                <logger level="INFO" doc:name="Log Mock Payment" message="Mock Payment API: #[payload]"/>
+            </when>
+            <otherwise>
+                <raise-error type="APP:PAYMENT_FAILED" description="Payment failed: Amount exceeds 1000" doc:name="Raise Payment Error"/>
+            </otherwise>
+        </choice>
+    </flow>
+
+    <flow name="cancelFlightFlow" doc:name="Cancel Flight Flow">
+        <ee:transform doc:name="Mock Flight Cancellation">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    "status": "success",
+    "message": "Flight to " ++ vars.originalPayload.vuelo_destino ++ " cancelled for " ++ vars.originalPayload.cliente
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+        <logger level="INFO" doc:name="Log Mock Flight Cancellation" message="Mock Flight Cancellation API: #[payload]"/>
+    </flow>
+
+    <flow name="cancelHotelFlow" doc:name="Cancel Hotel Flow">
+        <ee:transform doc:name="Mock Hotel Cancellation">
+            <ee:message>
+                <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    "status": "error",
+    "message": "Hotel " ++ vars.originalPayload.hotel_nombre ++ " cancelled for " ++ vars.originalPayload.cliente
+}]]></ee:set-payload>
+            </ee:message>
+        </ee:transform>
+        <logger level="INFO" doc:name="Log Mock Hotel Cancellation" message="Mock Hotel Cancellation API: #[payload]"/>
+    </flow>
+
+</mule>
